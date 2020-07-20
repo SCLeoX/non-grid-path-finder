@@ -9,8 +9,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen = "0.2.64"
-#wasm-bindgen-test = "0.3.14"
 console_error_panic_hook = "0.1.6"
+bv = "0.11.1"
+noisy_float = "0.1.12"
 
 [dependencies.web-sys]
 version = "0.3.4"

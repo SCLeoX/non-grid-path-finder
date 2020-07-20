@@ -77,6 +77,9 @@ impl Vec2 {
     pub fn cross(self, rhs: Self) -> f64 {
         self.x * rhs.y - self.y * rhs.x
     }
+    pub fn atan2(self) -> f64 {
+        self.y.atan2(self.x)
+    }
 }
 
 impl From<(f64, f64)> for Vec2 {

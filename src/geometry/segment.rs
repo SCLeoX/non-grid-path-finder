@@ -190,6 +190,18 @@ impl IntersectSegment for Segment {
     }
 }
 
+impl Segment {
+    pub fn connective_intersect(&self, other: &Segment) -> bool {
+        if self.p0 == other.p0 || self.p1 == other.p1 {
+            overlaps(self.vec(), other.vec())
+        } else if self.p0 == other.p1 || self.p1 == other.p0 {
+            overlaps(self.vec(), other.vec_rev())
+        } else {
+            self.intersect(other).is_some()
+        }
+    }
+}
+
 fn overlaps(vec_self: Vec2, vec_target: Vec2) -> bool {
     if vec_self.cross(vec_target).abs() <= f64::EPSILON {
         let self_sign_x = vec_self.sign_x();
@@ -198,16 +210,13 @@ fn overlaps(vec_self: Vec2, vec_target: Vec2) -> bool {
             if self_sign_x == Sign::Zero {
                 let self_sign_y = vec_self.sign_y();
                 let target_sign_y = vec_target.sign_y();
-                if self_sign_y == target_sign_y {
-                    true
-                } else {
-                    target_sign_y == Sign::Zero
-                }
+                self_sign_y == target_sign_y
             } else {
                 true
             }
         } else {
-            target_sign_x == Sign::Zero && vec_target.sign_y() == Sign::Zero
+            false
+            // target_sign_x == Sign::Zero && vec_target.sign_y() == Sign::Zero
         }
     } else {
         false

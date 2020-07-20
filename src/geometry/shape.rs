@@ -7,6 +7,12 @@ pub struct Shape {
     pub vertices: Vec<Vec2>,
 }
 
+pub enum ShapeWindingOrder {
+    Clockwise,
+    Counterclockwise,
+    Undetermined,
+}
+
 impl Shape {
     pub fn new(vertices: Vec<Vec2>) -> Self {
         Shape { vertices }
@@ -19,6 +25,37 @@ impl Shape {
     }
     pub fn is_empty(&self) -> bool {
         self.vertices.is_empty()
+    }
+    pub fn prev_vertex(&self, index: usize) -> Vec2 {
+        if index == 0 {
+            self.vertices[self.vertices.len() - 1]
+        } else {
+            self.vertices[index - 1]
+        }
+    }
+    pub fn next_vertex(&self, index: usize) -> Vec2 {
+        if index == self.vertices.len() - 1 {
+            self.vertices[0]
+        } else {
+            self.vertices[index + 1]
+        }
+    }
+    pub fn winding_order(&self) -> ShapeWindingOrder {
+        let sum = self
+            .segments()
+            .into_iter()
+            .map(|segment| (segment.p1.x - segment.p0.x) * (segment.p0.y + segment.p1.y))
+            .sum::<f64>();
+        if sum < 0. {
+            ShapeWindingOrder::Clockwise
+        } else if sum > 0. {
+            ShapeWindingOrder::Counterclockwise
+        } else {
+            ShapeWindingOrder::Undetermined
+        }
+    }
+    pub fn reverse(&mut self) {
+        self.vertices.reverse();
     }
 }
 

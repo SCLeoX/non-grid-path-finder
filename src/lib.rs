@@ -12,6 +12,7 @@ use crate::state::State;
 mod canvas;
 #[macro_use]
 mod console;
+mod a_star;
 mod geometry;
 mod input;
 mod navigation;

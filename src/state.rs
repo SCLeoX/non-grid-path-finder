@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::canvas::Canvas;
 use crate::geometry::{Segment, Shape, Vec2};
 use crate::input::Input;
-use crate::navigation::{EndPoint, Navigation, NavigationObstacle};
+use crate::navigation::{Navigation, NavigationInternal, NavigationObstacle};
 
 pub enum Placing {
     Start,
@@ -45,7 +45,11 @@ fn can_add_vertex_to_obstacle(point: Vec2, shape: &Shape) -> bool {
                     return false;
                 }
             }
-            !iter.next().unwrap().overlaps_with_p1_to(point)
+            let last_segment = iter.next().unwrap();
+            if last_segment.p1 == point {
+                return false;
+            }
+            !last_segment.overlaps_with_p1_to(point)
         }
     }
 }
@@ -89,10 +93,18 @@ impl State {
                 .map(|obstacle| NavigationObstacle::new(obstacle.vertices.clone()))
                 .collect(),
         );
+        self.find_path();
     }
     pub fn endpoint_updated(&mut self) {
+        self.find_path();
+    }
+    fn find_path(&mut self) {
         if let (Some(start), Some(end)) = (self.start, self.end) {
-            self.current_path = self.navigation.find_path(EndPoint::Free(start), EndPoint::Free(end));
+            self.current_path = if let Some(path) = self.navigation.find_path(start, end) {
+                path
+            } else {
+                vec![]
+            }
         } else {
             self.current_path = vec![];
         }
@@ -192,10 +204,36 @@ impl State {
             }
         }
     }
+    fn render_navigation_graph(&self, canvas: &Canvas) {
+        canvas.begin_path();
+        for segment in self.navigation.internal_paths() {
+            canvas.segment(&segment);
+        }
+        canvas.set_stroke_style("#f00");
+        canvas.stroke();
+    }
+    fn render_current_path(&self, canvas: &Canvas) {
+        if !self.current_path.is_empty() {
+            canvas.begin_path();
+            canvas.move_to(self.current_path[0]);
+            for vertex in &self.current_path[1..] {
+                canvas.line_to(*vertex);
+            }
+            canvas.set_stroke_style("#00F");
+            canvas.stroke()
+        }
+    }
     pub fn render(&self, canvas: &Canvas, input: &Input) {
         canvas.clear();
         self.render_obstacles(canvas);
         self.render_placing_obstacle(canvas, input);
-        self.render_endpoints(canvas)
+        self.render_endpoints(canvas);
+        // self.render_navigation_graph(canvas);
+        self.render_current_path(canvas);
+        web_sys::window().unwrap().document().unwrap().set_title(&format!(
+            "{}, {}",
+            input.mouse_pos().x,
+            input.mouse_pos().y
+        ));
     }
 }

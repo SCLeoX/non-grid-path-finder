@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
-use crate::geometry::Vec2;
+use crate::geometry::{Segment, Vec2};
 
 pub struct Canvas {
     canvas: HtmlCanvasElement,
@@ -28,6 +28,10 @@ impl Canvas {
     }
     pub fn begin_path(&self) {
         self.ctx.begin_path();
+    }
+    pub fn segment(&self, segment: &Segment) {
+        self.move_to(segment.p0);
+        self.line_to(segment.p1);
     }
     pub fn move_to(&self, point: Vec2) {
         self.ctx.move_to(point.x, point.y);
