@@ -3,11 +3,12 @@ use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{Document, HtmlCanvasElement, HtmlElement};
+use web_sys::{window, Document, HtmlCanvasElement, HtmlElement, UiEvent};
 
 use crate::canvas::Canvas;
 use crate::input::Input;
 use crate::state::State;
+use core::mem;
 
 mod canvas;
 #[macro_use]
@@ -17,8 +18,6 @@ mod geometry;
 mod input;
 mod navigation;
 mod state;
-
-// pub use geometry::{MutualIntersect, Segment, Shape};
 
 #[wasm_bindgen]
 extern "C" {
@@ -37,18 +36,42 @@ fn create_element<T: JsCast>(name: &str) -> T {
     document().create_element(name).unwrap().dyn_into::<T>().unwrap()
 }
 
+fn update_canvas_size(canvas: &HtmlCanvasElement) {
+    let window = web_sys::window().unwrap();
+    canvas.set_width(window.inner_width().unwrap().as_f64().unwrap() as u32);
+    canvas.set_height(window.inner_height().unwrap().as_f64().unwrap() as u32);
+}
+
 pub fn init_canvas() -> Canvas {
     let body = body();
     let canvas: HtmlCanvasElement = create_element("canvas");
-    canvas.set_width(800);
-    canvas.set_height(600);
+    canvas.set_id("canvas");
+    update_canvas_size(&canvas);
     body.append_with_node_1(&canvas).unwrap();
+
+    let closure = Closure::wrap(Box::new(move |_| {
+        update_canvas_size(
+            &document()
+                .get_element_by_id("canvas")
+                .unwrap()
+                .dyn_into::<HtmlCanvasElement>()
+                .unwrap(),
+        );
+    }) as Box<dyn Fn(UiEvent)>);
+    window()
+        .unwrap()
+        .add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())
+        .unwrap();
+    // please live forever
+    mem::forget(closure);
+
     Canvas::new(canvas)
 }
 
 #[wasm_bindgen]
 pub fn init() {
     console_error_panic_hook::set_once();
+
     let canvas = init_canvas();
     let state = State::new();
     let input = Input::new(canvas.html_canvas());

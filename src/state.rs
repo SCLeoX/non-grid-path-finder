@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use indoc::indoc;
+
 use crate::canvas::Canvas;
 use crate::geometry::{Segment, Shape, Vec2};
 use crate::input::Input;
@@ -19,6 +21,7 @@ pub struct State {
     placing: Option<Placing>,
     navigation: Navigation,
     current_path: Vec<Vec2>,
+    displaying_navigation_graph: bool,
 }
 
 const OBSTACLE_PLACING_FINISH_DIST_SQUARED: f64 = 100.;
@@ -63,6 +66,7 @@ impl State {
             placing: None,
             navigation: Navigation::new(vec![]),
             current_path: vec![],
+            displaying_navigation_graph: false,
         }))
     }
     pub fn update(&mut self, input: &Input) {
@@ -72,7 +76,9 @@ impl State {
             self.set_placing(Placing::Start);
         } else if input.is_frame_key_pressed("KeyE") {
             self.set_placing(Placing::End);
-        };
+        } else if input.is_frame_key_pressed("KeyN") {
+            self.displaying_navigation_graph = !self.displaying_navigation_graph;
+        }
 
         if let Some(Placing::Start) = self.placing {
             self.start = Some(input.mouse_pos());
@@ -209,7 +215,7 @@ impl State {
         for segment in self.navigation.internal_paths() {
             canvas.segment(&segment);
         }
-        canvas.set_stroke_style("#f00");
+        canvas.set_stroke_style("#F00");
         canvas.stroke();
     }
     fn render_current_path(&self, canvas: &Canvas) {
@@ -223,17 +229,30 @@ impl State {
             canvas.stroke()
         }
     }
+    fn render_controls(&self, canvas: &Canvas) {
+        canvas.set_fill_style("black");
+        canvas.fill_text_multiline(
+            Vec2::new(16., 16.),
+            indoc!(
+                "
+                    Controls
+                    S - Place/move starting point
+                    E - Place/move ending point
+                    O - Place obstacles
+                    N - Show/hide navigation graph
+                "
+            ),
+        )
+    }
     pub fn render(&self, canvas: &Canvas, input: &Input) {
         canvas.clear();
         self.render_obstacles(canvas);
         self.render_placing_obstacle(canvas, input);
-        self.render_endpoints(canvas);
-        // self.render_navigation_graph(canvas);
+        if self.displaying_navigation_graph {
+            self.render_navigation_graph(canvas);
+        }
         self.render_current_path(canvas);
-        web_sys::window().unwrap().document().unwrap().set_title(&format!(
-            "{}, {}",
-            input.mouse_pos().x,
-            input.mouse_pos().y
-        ));
+        self.render_endpoints(canvas);
+        self.render_controls(canvas);
     }
 }

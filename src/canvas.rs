@@ -56,4 +56,14 @@ impl Canvas {
     pub fn fill(&self) {
         self.ctx.fill();
     }
+    pub fn fill_text_multiline(&self, left_top_pos: Vec2, text: &str) {
+        for (line_index, line) in text.lines().enumerate() {
+            self.ctx.set_font("16px monospace");
+            self.ctx.set_text_baseline("top");
+            self.ctx.set_text_align("left");
+            self.ctx
+                .fill_text(line, left_top_pos.x, left_top_pos.y + 18. * (line_index as f64))
+                .unwrap();
+        }
+    }
 }
