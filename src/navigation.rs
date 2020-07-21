@@ -5,19 +5,11 @@ use noisy_float::prelude::*;
 use noisy_float::types::N64;
 
 use crate::a_star::{a_star, AStarInput};
-use crate::geometry::{Segment, Shape, ShapeWindingOrder, Vec2};
+use crate::geometry::{Angle, Segment, Shape, ShapeWindingOrder, Vec2};
 
 pub struct NavigationObstacle {
     shape: Shape,
     concave_vertices: BitVec,
-}
-
-fn angle_diff(lhs: f64, rhs: f64) -> f64 {
-    if lhs < rhs {
-        lhs + 2. * PI - rhs
-    } else {
-        lhs - rhs
-    }
 }
 
 impl NavigationObstacle {
@@ -28,12 +20,52 @@ impl NavigationObstacle {
         }
         let mut concave_vertices = BitVec::with_capacity(shape.vertices.len() as u64);
         for (vertex_index, vertex) in shape.vertices.iter().enumerate() {
-            let prev_angle = (shape.prev_vertex(vertex_index) - *vertex).atan2();
-            let next_angle = (shape.next_vertex(vertex_index) - *vertex).atan2();
-            concave_vertices.push(angle_diff(next_angle, prev_angle) < PI);
+            let prev_direction = (shape.prev_vertex(vertex_index) - *vertex).direction();
+            let next_direction = (shape.next_vertex(vertex_index) - *vertex).direction();
+            let theta = next_direction - prev_direction; // Inner angle
+            concave_vertices.push(theta.as_radians() < PI);
         }
         NavigationObstacle {
+            // shape: Shape::new(expanded_vertices),
             shape,
+            concave_vertices,
+        }
+    }
+    pub fn expand(&self, delta: f64, resolution: f64) -> Self {
+        debug_assert!(delta > 0.);
+        debug_assert!(resolution > 0.);
+        let mut concave_vertices = BitVec::new();
+        let mut expanded_vertices = vec![];
+        for (vertex_index, vertex) in self.shape.vertices.iter().enumerate() {
+            let prev_direction = (self.shape.prev_vertex(vertex_index) - *vertex).direction();
+            let next_direction = (self.shape.next_vertex(vertex_index) - *vertex).direction();
+            let theta = next_direction - prev_direction; // Inner angle
+            let is_concave = theta.as_radians() < PI;
+            if is_concave {
+                let start_direction = prev_direction - Angle::from_radians_bounded(PI / 2.);
+                let end_direction = next_direction + Angle::from_radians_bounded(PI / 2.);
+                let angle_diff = (start_direction - end_direction).as_radians();
+                if angle_diff != 2. * PI {
+                    let steps = (angle_diff / resolution).round().max(1.);
+                    let step_angle = Angle::from_radians_bounded(angle_diff / steps);
+                    let mut current_direction = start_direction;
+                    for _ in 0..(steps as usize) + 1 {
+                        expanded_vertices.push(*vertex + Vec2::dir_mag(current_direction, delta));
+                        concave_vertices.push(true);
+                        current_direction = current_direction - step_angle;
+                    }
+                }
+            } else {
+                let theta_prime = theta.explementary(); // Outer angle
+                let side_length = delta / theta_prime.as_radians().sin();
+                expanded_vertices.push(
+                    *vertex + Vec2::dir_mag(prev_direction, side_length) + Vec2::dir_mag(next_direction, side_length),
+                );
+                concave_vertices.push(false);
+            }
+        }
+        NavigationObstacle {
+            shape: Shape::new(expanded_vertices),
             concave_vertices,
         }
     }
@@ -128,11 +160,6 @@ impl Navigation {
                                 // If convex, just skip over
                                 continue;
                             }
-
-                            // if obstacle0_index == obstacle1_index && vertex0_index == vertex1_index {
-                            //     // Don't try to connect to itself
-                            //     continue;
-                            // }
 
                             if !is_in_connectable_range(obstacle0, *vertex0, vertex0_index, *vertex1) {
                                 continue;
@@ -298,11 +325,12 @@ impl Navigation {
 
 /// Only use this trait if you want to access the internals of a Navigation struct
 pub trait NavigationInternal {
-    fn internal_paths(&self) -> Vec<Segment>;
+    fn internal_navigation_graph(&self) -> Vec<Segment>;
+    fn internal_obstacles(&self) -> Vec<&Shape>;
 }
 
 impl NavigationInternal for Navigation {
-    fn internal_paths(&self) -> Vec<Segment> {
+    fn internal_navigation_graph(&self) -> Vec<Segment> {
         self.navigation_graph
             .iter()
             .flat_map(|node0| {
@@ -313,5 +341,9 @@ impl NavigationInternal for Navigation {
                     .map(move |&node_id| Segment::new(node0.position, self.navigation_graph[node_id].position))
             })
             .collect()
+    }
+
+    fn internal_obstacles(&self) -> Vec<&Shape> {
+        self.obstacles.iter().map(|obstacle| &obstacle.shape).collect()
     }
 }

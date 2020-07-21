@@ -21,7 +21,9 @@ pub struct State {
     placing: Option<Placing>,
     navigation: Navigation,
     current_path: Vec<Vec2>,
+    displaying_actual_obstacles: bool,
     displaying_navigation_graph: bool,
+    reserved_path_width_level: u32,
 }
 
 const OBSTACLE_PLACING_FINISH_DIST_SQUARED: f64 = 100.;
@@ -66,18 +68,33 @@ impl State {
             placing: None,
             navigation: Navigation::new(vec![]),
             current_path: vec![],
+            displaying_actual_obstacles: false,
             displaying_navigation_graph: false,
+            reserved_path_width_level: 0,
         }))
     }
     pub fn update(&mut self, input: &Input) {
+        if input.is_frame_key_pressed("KeyA") {
+            self.displaying_actual_obstacles = !self.displaying_actual_obstacles;
+        }
+        if input.is_frame_key_pressed("KeyN") {
+            self.displaying_navigation_graph = !self.displaying_navigation_graph;
+        }
+        if input.is_frame_key_pressed("BracketLeft") {
+            self.reserved_path_width_level = self.reserved_path_width_level.saturating_sub(5);
+            self.obstacles_updated();
+        }
+        if input.is_frame_key_pressed("BracketRight") {
+            self.reserved_path_width_level = self.reserved_path_width_level.saturating_add(5);
+            self.obstacles_updated();
+        }
+
         if input.is_frame_key_pressed("KeyO") {
             self.set_placing(Placing::Obstacle(Shape::new_empty()));
         } else if input.is_frame_key_pressed("KeyS") {
             self.set_placing(Placing::Start);
         } else if input.is_frame_key_pressed("KeyE") {
             self.set_placing(Placing::End);
-        } else if input.is_frame_key_pressed("KeyN") {
-            self.displaying_navigation_graph = !self.displaying_navigation_graph;
         }
 
         if let Some(Placing::Start) = self.placing {
@@ -96,7 +113,14 @@ impl State {
         self.navigation = Navigation::new(
             self.obstacles
                 .iter()
-                .map(|obstacle| NavigationObstacle::new(obstacle.vertices.clone()))
+                .map(|obstacle| {
+                    let obstacle = NavigationObstacle::new(obstacle.vertices.clone());
+                    if self.reserved_path_width_level == 0 {
+                        obstacle
+                    } else {
+                        obstacle.expand(self.reserved_path_width_level as f64, std::f64::consts::PI / 6.)
+                    }
+                })
                 .collect(),
         );
         self.find_path();
@@ -175,7 +199,7 @@ impl State {
     fn render_one_endpoint(&self, canvas: &Canvas, point: Vec2, color: &str) {
         canvas.set_fill_style(color);
         canvas.begin_path();
-        canvas.circle(point, 3.);
+        canvas.circle(point, 5.);
         canvas.fill();
     }
     fn render_endpoints(&self, canvas: &Canvas) {
@@ -212,10 +236,25 @@ impl State {
     }
     fn render_navigation_graph(&self, canvas: &Canvas) {
         canvas.begin_path();
-        for segment in self.navigation.internal_paths() {
+        for segment in self.navigation.internal_navigation_graph() {
             canvas.segment(&segment);
         }
         canvas.set_stroke_style("#F00");
+        canvas.stroke();
+    }
+    fn render_actual_obstacles(&self, canvas: &Canvas) {
+        canvas.begin_path();
+        for shape in self.navigation.internal_obstacles() {
+            if shape.is_empty() {
+                continue;
+            }
+            canvas.move_to(shape.vertices[0]);
+            for vertex in &shape.vertices[1..] {
+                canvas.line_to(*vertex);
+            }
+            canvas.line_to(shape.vertices[0]);
+        }
+        canvas.set_stroke_style("#ccc");
         canvas.stroke();
     }
     fn render_current_path(&self, canvas: &Canvas) {
@@ -233,14 +272,19 @@ impl State {
         canvas.set_fill_style("black");
         canvas.fill_text_multiline(
             Vec2::new(16., 16.),
-            indoc!(
-                "
-                    Controls
-                    S - Place/move starting point
-                    E - Place/move ending point
-                    O - Place obstacles
-                    N - Show/hide navigation graph
-                "
+            &format!(
+                "Controls
+S - Place/move starting point
+E - Place/move ending point
+O - Place obstacles
+N - Show/hide navigation graph
+A - Show/hide expanded obstacles
+[, ] - Change reserved path width ({})",
+                if self.reserved_path_width_level == 0 {
+                    "OFF".to_owned()
+                } else {
+                    self.reserved_path_width_level.to_string()
+                }
             ),
         )
     }
@@ -248,6 +292,9 @@ impl State {
         canvas.clear();
         self.render_obstacles(canvas);
         self.render_placing_obstacle(canvas, input);
+        if self.displaying_actual_obstacles {
+            self.render_actual_obstacles(canvas);
+        }
         if self.displaying_navigation_graph {
             self.render_navigation_graph(canvas);
         }
