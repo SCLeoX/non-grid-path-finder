@@ -269,12 +269,14 @@ impl State {
             canvas.stroke()
         }
     }
-    fn render_controls(&self, canvas: &Canvas) {
+    fn render_info(&self, canvas: &Canvas) {
         canvas.set_fill_style("black");
         canvas.fill_text_multiline(
             Vec2::new(16., 16.),
             &format!(
-                "Controls
+                "Rin's Non-gird Path Finder
+                
+Controls
 S - Place/move starting point
 E - Place/move ending point
 O - Place obstacles
@@ -301,6 +303,6 @@ A - Show/hide expanded obstacles
         }
         self.render_current_path(canvas);
         self.render_endpoints(canvas);
-        self.render_controls(canvas);
+        self.render_info(canvas);
     }
 }
