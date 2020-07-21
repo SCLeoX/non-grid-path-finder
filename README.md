@@ -1,6 +1,8 @@
 # Rin's Non-grid Path Finder
 This is a path finding algorithm for non-grid-based environments. It is guaranteed to find the shortest path between two given points. Essentially, it works by first constructing a navigation graph of obstacles, then using A* in that graph to find the shortest path.
 
+### [Try it now](https://scleox.github.io/non-grid-path-finder/)
+
 ## Limitations
 - The traveling cost field must be uniform.
 - All obstacles must be polygons.
