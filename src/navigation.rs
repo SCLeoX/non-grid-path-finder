@@ -86,9 +86,9 @@ fn is_in_connectable_range(obstacle: &NavigationObstacle, vertex: Vec2, vertex_i
     let r = a < c;
     let ap = bound_angle(a + PI);
     let bp = bound_angle(b + PI);
-    let s = ap < bp;
-    let t = bp < c;
-    let u = ap <= c;
+    let s = ap <= bp;
+    let t = bp <= c;
+    let u = ap < c;
     p ^ q ^ r && s ^ t ^ u
 }
 
