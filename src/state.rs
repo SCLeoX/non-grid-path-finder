@@ -1,8 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use indoc::indoc;
-
 use crate::canvas::Canvas;
 use crate::geometry::{Segment, Shape, Vec2};
 use crate::input::Input;
@@ -118,7 +116,10 @@ impl State {
                     if self.reserved_path_width_level == 0 {
                         obstacle
                     } else {
-                        obstacle.expand(self.reserved_path_width_level as f64, std::f64::consts::PI / 6.)
+                        obstacle.expand(
+                            self.reserved_path_width_level as f64,
+                            std::f64::consts::PI / (self.reserved_path_width_level as f64 / 5. + 2.).min(10.),
+                        )
                     }
                 })
                 .collect(),

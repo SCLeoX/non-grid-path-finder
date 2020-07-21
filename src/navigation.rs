@@ -37,15 +37,17 @@ impl NavigationObstacle {
         let mut concave_vertices = BitVec::new();
         let mut expanded_vertices = vec![];
         for (vertex_index, vertex) in self.shape.vertices.iter().enumerate() {
-            let prev_direction = (self.shape.prev_vertex(vertex_index) - *vertex).direction();
-            let next_direction = (self.shape.next_vertex(vertex_index) - *vertex).direction();
-            let theta = next_direction - prev_direction; // Inner angle
-            let is_concave = theta.as_radians() < PI;
-            if is_concave {
-                let start_direction = prev_direction - Angle::from_radians_bounded(PI / 2.);
-                let end_direction = next_direction + Angle::from_radians_bounded(PI / 2.);
-                let angle_diff = (start_direction - end_direction).as_radians();
-                if angle_diff != 2. * PI {
+            let prev_vec = self.shape.prev_vertex(vertex_index) - *vertex;
+            let prev_direction = prev_vec.direction();
+            let next_vec = self.shape.next_vertex(vertex_index) - *vertex;
+            let next_direction = next_vec.direction();
+            let start_direction = prev_direction - Angle::from_radians_bounded(PI / 2.);
+            let end_direction = next_direction + Angle::from_radians_bounded(PI / 2.);
+            let angle_diff = (start_direction - end_direction).as_radians();
+            if angle_diff != 2. * PI {
+                // Do nothing if collinear
+                if angle_diff < PI {
+                    // Concave, create arc
                     let steps = (angle_diff / resolution).round().max(1.);
                     let step_angle = Angle::from_radians_bounded(angle_diff / steps);
                     let mut current_direction = start_direction;
@@ -54,14 +56,13 @@ impl NavigationObstacle {
                         concave_vertices.push(true);
                         current_direction = current_direction - step_angle;
                     }
+                } else {
+                    // Convex, just connect
+                    expanded_vertices.push(*vertex + Vec2::dir_mag(start_direction, delta));
+                    concave_vertices.push(false);
+                    expanded_vertices.push(*vertex + Vec2::dir_mag(end_direction, delta));
+                    concave_vertices.push(false);
                 }
-            } else {
-                let theta_prime = theta.explementary(); // Outer angle
-                let side_length = delta / theta_prime.as_radians().sin();
-                expanded_vertices.push(
-                    *vertex + Vec2::dir_mag(prev_direction, side_length) + Vec2::dir_mag(next_direction, side_length),
-                );
-                concave_vertices.push(false);
             }
         }
         NavigationObstacle {

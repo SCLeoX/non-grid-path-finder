@@ -12,7 +12,6 @@ wasm-bindgen = "0.2.64"
 console_error_panic_hook = "0.1.6"
 bv = "0.11.1"
 noisy_float = "0.1.12"
-indoc = "0.3"
 
 [dependencies.web-sys]
 version = "0.3.4"
