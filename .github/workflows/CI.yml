@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+    - name: Compile rust
+      run: wasm-pack build
+    - name: Setup Node.js environment
+      uses: actions/setup-node@v2.1.0
+      with:
+        node-version: 14.5.x
+        check-latest: true
+    - name: Run npm install
+      run: |
+        cd web
+        npm install
+    - name: webpack
+      run: |
+        cd web
+        npm run build
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./web/dist
